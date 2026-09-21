@@ -126,9 +126,16 @@ export default function ClientModal({
                 maxLength={100}
                 placeholder="Acme Corp or Jane Doe"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  // Do not allow numbers
+                  const filtered = e.target.value.replace(/[0-9]/g, '');
+                  setName(filtered);
+                }}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition"
               />
+              <p className="text-[11px] text-white/40 mt-1">
+                Letters and spaces only (numbers not allowed).
+              </p>
             </div>
 
             <div>
@@ -147,18 +154,28 @@ export default function ClientModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-white/80 uppercase tracking-wider mb-1.5">
-                Phone Number <span className="text-white/40 font-normal">(Optional)</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  Phone Number <span className="text-white/40 font-normal">(Optional)</span>
+                </label>
+                <span className="text-[11px] text-white/40 font-mono">
+                  {phone.length}/10 digits
+                </span>
+              </div>
               <input
                 type="tel"
-                placeholder="+91 98765 43210"
+                maxLength={10}
+                placeholder="9876543210"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition"
+                onChange={(e) => {
+                  // Only allow numbers, maximum 10 digits
+                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setPhone(digitsOnly);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition font-mono"
               />
               <p className="text-[11px] text-white/40 mt-1">
-                Used for SMS/WhatsApp escalation reminders in future phases.
+                Only numbers, exactly 10 digits (e.g. 9876543210).
               </p>
             </div>
 

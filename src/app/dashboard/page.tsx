@@ -4,13 +4,12 @@ import { redirect } from 'next/navigation';
 import { ShieldAlert } from 'lucide-react';
 import { getCurrentUser } from '@/lib/get-current-user';
 import { getDashboardStats, formatCurrencyAmounts } from '@/lib/dashboard';
-import LogoutButton from '@/components/auth/LogoutButton';
+import AppNavbar from '@/components/ui/AppNavbar';
 import StatCard from '@/components/dashboard/StatCard';
 import GettingStarted from '@/components/dashboard/GettingStarted';
 import QuickActions from '@/components/dashboard/QuickActions';
 import ActionNeeded from '@/components/dashboard/ActionNeeded';
 import RecentActivity from '@/components/dashboard/RecentActivity';
-import Logo from '@/components/ui/Logo';
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -26,39 +25,32 @@ export default async function DashboardPage() {
   const stats = await getDashboardStats(user.id);
 
   return (
-    <div className="min-h-dvh flex flex-col justify-between p-4 sm:p-6 lg:p-8 relative">
-      {/* Top Header */}
-      <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-6 mb-2 border-b border-white/10">
-        <Logo href="/dashboard" />
-
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Link
-            href="/clients"
-            className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition hidden sm:block"
-          >
-            Clients
-          </Link>
-          <LogoutButton />
-        </div>
-      </header>
+    <div className="min-h-dvh flex flex-col justify-between relative bg-[#030712]">
+      {/* Universal SaaS Navbar */}
+      <AppNavbar />
 
       {/* Main Content */}
-      <main className="w-full max-w-6xl mx-auto my-auto py-6 space-y-8">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
         {/* 1. Greeting Header & Quick Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
-              Welcome back, {firstName}
-            </h1>
-            <p className="text-sm sm:text-base text-white/70 mt-1">
-              Here is where your money stands today.
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                Welcome back, {firstName}
+              </h1>
+              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Live Overview
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Your real-time receivable health, overdue follow-ups, and payment activity.
             </p>
           </div>
 
           <QuickActions />
         </div>
 
-        {/* 2. Four Stat Cards Grid */}
+        {/* 2. Four Stat Cards Grid (Desktop 25% each, Tablet 50%, Mobile 100%) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           <StatCard
             label="Total Pending"
@@ -79,30 +71,39 @@ export default async function DashboardPage() {
             variant="emerald"
           />
           <StatCard
-            label="Overdue invoices"
+            label="Overdue Invoices"
             value={stats.overdueInvoiceCount.toString()}
             iconType="count"
             variant="rose"
           />
         </div>
 
-        {/* 3. Getting Started Checklist Card */}
+        {/* 3. Getting Started Checklist Card (Only when setup incomplete or as clean banner) */}
         <GettingStarted
           hasClients={stats.clientCount > 0}
           hasInvoices={stats.invoiceCount > 0}
           hasSentInvoice={stats.hasSentInvoice}
         />
 
-        {/* 4. Action Needed & Recent Activity Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-          <ActionNeeded invoices={stats.actionNeededInvoices} />
-          <RecentActivity events={stats.recentActivities} />
+        {/* 4. Main Workflow Split: Action Needed (60% col-span-7) vs Recent Activity (40% col-span-5) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          <div className="lg:col-span-7">
+            <ActionNeeded invoices={stats.actionNeededInvoices} />
+          </div>
+          <div className="lg:col-span-5">
+            <RecentActivity events={stats.recentActivities} />
+          </div>
         </div>
       </main>
 
       {/* Clean Footer */}
-      <footer className="w-full max-w-6xl mx-auto pt-6 border-t border-white/10 text-center text-xs text-white/40">
-        © {new Date().getFullYear()} PayChase • Automated Payment Recovery for Creators
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-6 border-t border-white/5 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>© {new Date().getFullYear()} PayChase • Automated Payment Recovery for Freelancers</div>
+        <div className="flex items-center gap-4 text-[11px] text-slate-500">
+          <span>Encrypted DB Pool</span>
+          <span>•</span>
+          <span>Auto Chaser V2</span>
+        </div>
       </footer>
     </div>
   );

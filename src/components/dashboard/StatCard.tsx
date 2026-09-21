@@ -56,19 +56,23 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <GlassCard className="p-5 sm:p-6 border-white/15 bg-slate-900/60 shadow-lg">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-white/50 truncate">
+    <GlassCard className="p-5 sm:p-6 border-white/10 bg-slate-900/50 hover:bg-slate-900/80 transition-all duration-300">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">
           {label}
         </span>
         <div
-          className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${styles.iconBg}`}
+          className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-inner ${styles.iconBg}`}
         >
           {renderIcon()}
         </div>
       </div>
-      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${styles.valueText}`}>
+      <div className={`text-2xl sm:text-[1.75rem] font-bold tracking-tight font-sans ${styles.valueText}`}>
         {value}
+      </div>
+      <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-500/50" />
+        <span>Live sync</span>
       </div>
     </GlassCard>
   );

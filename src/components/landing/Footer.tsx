@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShieldAlert } from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 
 const FOOTER_CONTENT = {
   brand: 'PayChase',
@@ -18,7 +18,7 @@ const FOOTER_CONTENT = {
   legal: [
     { label: 'Privacy Policy', href: '/privacy' },
     { label: 'Terms of Service', href: '/terms' },
-    { label: 'Contact Support', href: 'mailto:support@paychase.app' },
+    { label: 'Contact Support', href: '/contact' },
   ],
 };
 
@@ -36,15 +36,9 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-white/10">
           {/* Brand Col */}
           <div className="md:col-span-6 flex flex-col items-start">
-            <Link href="/" className="flex items-center gap-2 text-white font-bold text-lg mb-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                <ShieldAlert className="w-4 h-4 text-white" />
-              </div>
-              <span>
-                {FOOTER_CONTENT.brand}
-                <span className="text-indigo-400">.</span>
-              </span>
-            </Link>
+            <div className="mb-3">
+              <Logo href="/" />
+            </div>
             <p className="text-sm text-white/60 max-w-sm mb-3">{FOOTER_CONTENT.tagline}</p>
             <p className="text-xs text-white/40">{FOOTER_CONTENT.madeFor}</p>
           </div>
@@ -84,9 +78,8 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom copyright */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/50">
+        <div className="pt-6 flex items-center justify-center text-xs text-white/50 text-center">
           <p>{FOOTER_CONTENT.copyright}</p>
-          <p className="text-white/40">Secured with 256-bit SSL encryption</p>
         </div>
       </div>
     </footer>

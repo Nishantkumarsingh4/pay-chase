@@ -125,12 +125,12 @@ export function InvoiceForm({ clients, initialData, isEdit = false }: InvoiceFor
           setError(res.error || 'Failed to create invoice');
         } else {
           setSuccessMsg(
-            `Invoice ${res.invoiceNumber || ''} created & email dispatched to client! Redirecting...`
+            `Invoice ${res.invoiceNumber || ''} created successfully! Redirecting...`
           );
           setTimeout(() => {
             router.push(`/invoices/${res.invoiceId}`);
             router.refresh();
-          }, 3000);
+          }, 1200);
         }
       }
     });
@@ -404,18 +404,20 @@ export function InvoiceForm({ clients, initialData, isEdit = false }: InvoiceFor
       </GlassCard>
 
       {/* Notes Card */}
-      <GlassCard className="p-6 sm:p-8 border-white/15 bg-slate-900/60 shadow-xl space-y-2">
-        <label className="block text-xs font-semibold text-white/80 uppercase tracking-wider">
-          Payment Notes & Bank Instructions (Optional)
-        </label>
-        <textarea
+      <GlassCard className="p-6 sm:p-8 border-white/15 bg-slate-900/60 shadow-xl space-y-3">
+        <div>
+          <label className="block text-xs font-semibold text-white/80 uppercase tracking-wider mb-2.5">
+            Payment Notes & Bank Instructions (Optional)
+          </label>
+          <textarea
           rows={3}
           maxLength={1000}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="E.g. Bank Account details, UPI ID, or thank you note."
-          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/70 border border-white/15 text-white placeholder-white/30 text-sm focus:outline-none focus:border-indigo-400"
-        />
+            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/70 border border-white/15 text-white placeholder-white/30 text-sm focus:outline-none focus:border-indigo-400"
+          />
+        </div>
         <div className="text-right text-[11px] text-white/40">{notes.length} / 1000</div>
       </GlassCard>
     </form>

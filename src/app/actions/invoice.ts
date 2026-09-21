@@ -127,63 +127,9 @@ export async function createInvoice(rawInput: InvoiceFormInput) {
 
     await conn.commit();
 
-    // 6. Automatically dispatch invoice email to client upon issuing
-    let emailSent = false;
-    try {
-      const [clientRows] = await pool.query<RowDataPacket[]>(
-        'SELECT name, email FROM clients WHERE id = ? AND user_id = ?',
-        [clientId, user.id]
-      );
-      if (clientRows.length > 0) {
-        const client = clientRows[0];
-        const appUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || 'http://localhost:3000';
-        const viewUrl = `${appUrl}/pay/${invoiceId}`;
-
-        const formattedDueDate = new Intl.DateTimeFormat('en-US', {
-          dateStyle: 'medium',
-        }).format(new Date(dueDate));
-
-        const formattedTotal = formatInvoiceAmount(serverTotal, currency);
-
-        const res = await sendInvoiceEmail({
-          to: client.email,
-          clientName: client.name,
-          senderName: user.name,
-          senderEmail: user.email,
-          invoiceNumber,
-          currency,
-          total: formattedTotal,
-          dueDate: formattedDueDate,
-          viewUrl,
-          notes: notes || undefined,
-        });
-
-        if (res) {
-          emailSent = true;
-          await pool.query('UPDATE invoices SET sent_at = NOW() WHERE id = ?', [invoiceId]);
-          const eventId = uuidv4();
-          await pool.query(
-            `INSERT INTO reminders (id, invoice_id, user_id, tone, channel, recipient_email, subject, message_body, sent_at, status)
-             VALUES (?, ?, ?, 'POLITE', 'EMAIL', ?, ?, ?, NOW(), 'SENT')`,
-            [
-              eventId,
-              invoiceId,
-              user.id,
-              client.email,
-              `Invoice ${invoiceNumber} Issued & Sent`,
-              `Official invoice with payment link dispatched to ${client.email}`,
-            ]
-          );
-        }
-      }
-    } catch (mailErr) {
-      console.error('[AUTO_DISPATCH_INVOICE_EMAIL_ERROR]', mailErr);
-    }
-
-
     revalidatePath('/invoices');
     revalidatePath('/dashboard');
-    return { success: true, invoiceId, invoiceNumber, emailSent };
+    return { success: true, invoiceId, invoiceNumber };
   } catch (err: any) {
     await conn.rollback();
     console.error('[CREATE_INVOICE_ERROR]', err);
@@ -615,6 +561,239 @@ export async function getInvoiceWhatsAppUrlAction(
   } catch (err: any) {
     console.error('[GET_WHATSAPP_URL_ERROR]', err);
     return { success: false, error: err.message || 'Failed to generate WhatsApp link' };
+  }
+}
+
+/**
+ * PROCESS PUBLIC CLIENT PAYMENT
+ * Enables client on `/pay/[id]` to pay their invoice directly.
+ * Automatically marks invoice as PAID, records payment transaction,
+ * disables further chaser reminders, and revalidates paths.
+ */
+export async function processPublicPayment(
+  invoiceId: string,
+  paymentMethod: string = 'CHECKOUT'
+): Promise<{ success: boolean; error?: string; txnId?: string }> {
+  try {
+    const pool = getDbPool();
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      const [invRows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, total, status, reminders_enabled 
+         FROM invoices 
+         WHERE id = ? FOR UPDATE`,
+        [invoiceId]
+      );
+      const invoice = invRows[0];
+
+      if (!invoice) {
+        await conn.rollback();
+        return { success: false, error: 'Invoice not found' };
+      }
+
+      if (invoice.status === 'PAID') {
+        await conn.rollback();
+        return { success: false, error: 'Invoice is already paid' };
+      }
+
+      if (invoice.status === 'CANCELLED') {
+        await conn.rollback();
+        return { success: false, error: 'Cancelled invoices cannot be paid' };
+      }
+
+      // Generate payment transaction ID
+      const paymentId = uuidv4();
+      const txnId = `pay_${uuidv4().replace(/-/g, '').slice(0, 16)}`;
+
+      // 1. Mark invoice as PAID, record paid timestamp, disable chasing reminders
+      await conn.query(
+        `UPDATE invoices 
+         SET status = 'PAID', 
+             paid_at = NOW(), 
+             reminders_enabled = 0,
+             updated_at = NOW()
+         WHERE id = ?`,
+        [invoiceId]
+      );
+
+      // 2. Insert into payments table
+      await conn.query(
+        `INSERT INTO payments (id, invoice_id, gateway, txn_id, amount, paid_at)
+         VALUES (?, ?, ?, ?, ?, NOW())`,
+        [paymentId, invoiceId, paymentMethod.toUpperCase(), txnId, invoice.total]
+      );
+
+      await conn.commit();
+
+      // Revalidate public pay page and dashboard/invoices paths
+      revalidatePath(`/pay/${invoiceId}`);
+      revalidatePath(`/invoices/${invoiceId}`);
+      revalidatePath('/invoices');
+      revalidatePath('/dashboard');
+
+      return { success: true, txnId };
+    } catch (err: any) {
+      await conn.rollback();
+      console.error('[PROCESS_PUBLIC_PAYMENT_TRANSACTION_ERROR]', err);
+      return { success: false, error: err.message || 'Payment processing failed.' };
+    } finally {
+      conn.release();
+    }
+  } catch (error: any) {
+    console.error('[PROCESS_PUBLIC_PAYMENT_ERROR]', error);
+    return { success: false, error: error.message || 'Network error processing payment.' };
+  }
+}
+
+/**
+ * CREATE RAZORPAY ORDER
+ * Creates an official Razorpay order for the invoice
+ */
+export async function createRazorpayOrder(invoiceId: string): Promise<{
+  success: boolean;
+  orderId?: string;
+  amount?: number;
+  currency?: string;
+  keyId?: string;
+  error?: string;
+}> {
+  try {
+    const pool = getDbPool();
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id, total, currency, status FROM invoices WHERE id = ?`,
+      [invoiceId]
+    );
+    const invoice = rows[0];
+
+    if (!invoice) {
+      return { success: false, error: 'Invoice not found' };
+    }
+
+    if (invoice.status === 'PAID') {
+      return { success: false, error: 'Invoice is already paid' };
+    }
+
+    const { getRazorpayClient } = await import('@/lib/razorpay');
+    const razorpay = getRazorpayClient();
+
+    // If Razorpay keys are not provided yet in env, indicate fallback
+    if (!razorpay) {
+      return {
+        success: false,
+        error: 'RAZORPAY_NOT_CONFIGURED',
+      };
+    }
+
+    // Razorpay requires amount in smallest currency unit (paise for INR, cents for USD)
+    const amountInSubunits = Math.round(Number(invoice.total) * 100);
+
+    const order = await razorpay.orders.create({
+      amount: amountInSubunits,
+      currency: invoice.currency.toUpperCase(),
+      receipt: `inv_${invoiceId.slice(0, 20)}`,
+      notes: {
+        invoiceId: invoice.id,
+      },
+    });
+
+    return {
+      success: true,
+      orderId: order.id,
+      amount: amountInSubunits,
+      currency: invoice.currency.toUpperCase(),
+      keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    };
+  } catch (err: any) {
+    console.error('[CREATE_RAZORPAY_ORDER_ERROR]', err);
+    return { success: false, error: err.message || 'Failed to initialize payment gateway.' };
+  }
+}
+
+/**
+ * VERIFY AND CAPTURE RAZORPAY PAYMENT
+ */
+export async function verifyAndRecordRazorpayPayment({
+  invoiceId,
+  orderId,
+  paymentId,
+  signature,
+}: {
+  invoiceId: string;
+  orderId: string;
+  paymentId: string;
+  signature: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { verifyRazorpaySignature } = await import('@/lib/razorpay');
+    const isValid = verifyRazorpaySignature({ orderId, paymentId, signature });
+
+    if (!isValid) {
+      return { success: false, error: 'Payment signature verification failed. Please contact support.' };
+    }
+
+    const pool = getDbPool();
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      const [invRows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, total, status FROM invoices WHERE id = ? FOR UPDATE`,
+        [invoiceId]
+      );
+      const invoice = invRows[0];
+
+      if (!invoice) {
+        await conn.rollback();
+        return { success: false, error: 'Invoice not found' };
+      }
+
+      if (invoice.status === 'PAID') {
+        await conn.rollback();
+        return { success: true };
+      }
+
+      const pId = uuidv4();
+
+      // 1. Mark invoice as PAID
+      await conn.query(
+        `UPDATE invoices 
+         SET status = 'PAID', 
+             paid_at = NOW(), 
+             reminders_enabled = 0,
+             updated_at = NOW()
+         WHERE id = ?`,
+        [invoiceId]
+      );
+
+      // 2. Insert into payments table with exact Razorpay payment ID
+      await conn.query(
+        `INSERT INTO payments (id, invoice_id, gateway, txn_id, amount, paid_at)
+         VALUES (?, ?, 'RAZORPAY', ?, ?, NOW())`,
+        [pId, invoiceId, paymentId, invoice.total]
+      );
+
+      await conn.commit();
+
+      revalidatePath(`/pay/${invoiceId}`);
+      revalidatePath(`/invoices/${invoiceId}`);
+      revalidatePath('/invoices');
+      revalidatePath('/dashboard');
+
+      return { success: true };
+    } catch (dbErr: any) {
+      await conn.rollback();
+      console.error('[RECORD_RAZORPAY_PAYMENT_DB_ERROR]', dbErr);
+      return { success: false, error: 'Database update failed.' };
+    } finally {
+      conn.release();
+    }
+  } catch (error: any) {
+    console.error('[VERIFY_RAZORPAY_PAYMENT_ERROR]', error);
+    return { success: false, error: error.message || 'Payment verification failed.' };
   }
 }
 

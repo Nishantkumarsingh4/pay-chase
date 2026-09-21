@@ -17,7 +17,8 @@ export const nameSchema = z
   .trim()
   .min(2, 'Name must be at least 2 characters')
   .max(60, 'Name cannot exceed 60 characters')
-  .regex(/^[^\x00-\x1F\x7F]+$/, 'Name cannot contain control characters');
+  .refine((val) => !/\d/.test(val), 'Name cannot contain numbers')
+  .refine((val) => /^[a-zA-Z\s.'-]+$/.test(val), 'Name can only contain letters and spaces');
 
 export const emailSchema = z
   .string()

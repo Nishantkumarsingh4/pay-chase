@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-current-user';
-import { getInvoiceDetail } from '@/lib/invoice-queries';
+import { getInvoiceDetail, getPublicInvoiceDetail } from '@/lib/invoice-queries';
 import { formatInvoiceAmount, calculateLineTotal } from '@/lib/invoice';
 
 interface RouteParams {
@@ -11,13 +11,17 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
     const { id } = await params;
-    const invoice = await getInvoiceDetail(id, user.id);
+    const user = await getCurrentUser();
+    
+    // If user is authenticated, check their invoices; if public client viewing, check public invoice
+    let invoice = null;
+    if (user?.id) {
+      invoice = await getInvoiceDetail(id, user.id);
+    }
+    if (!invoice) {
+      invoice = await getPublicInvoiceDetail(id);
+    }
 
     if (!invoice) {
       return new NextResponse('Invoice not found', { status: 404 });
@@ -58,6 +62,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         </tr>`
       )
       .join('');
+
+    const paymentsHtml = invoice.payments && invoice.payments.length > 0
+      ? `
+      <div style="margin-bottom: 24px; padding: 14px 18px; border-radius: 12px; background-color: #f0fdf4; border: 1px solid #bbf7d0;">
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #15803d; margin-bottom: 6px;">
+          ✓ Payment Confirmation & Transaction Details
+        </div>
+        ${invoice.payments
+          .map(
+            (p) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #166534; padding: 4px 0;">
+              <div>
+                <strong>Gateway:</strong> ${p.gateway} • <strong>Txn ID:</strong> <span style="font-family: monospace; font-weight: 600;">${p.txnId}</span>
+              </div>
+              <div>
+                <strong>Paid:</strong> ${formatInvoiceAmount(p.amount, invoice.currency)} on ${new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(p.paidAt)}
+              </div>
+            </div>`
+          )
+          .join('')}
+      </div>`
+      : '';
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -366,6 +392,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       </div>
     </div>
   </div>
+
+  ${paymentsHtml}
 
   <div class="table-container">
     <table>

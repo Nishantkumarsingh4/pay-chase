@@ -145,11 +145,17 @@ export default function SignupPage() {
               autoComplete="name"
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => {
+                const filtered = e.target.value.replace(/[0-9]/g, '');
+                setFormData({ ...formData, name: filtered });
+              }}
               placeholder="Sarah Jenkins"
               aria-invalid={!!fieldErrors.name}
               className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/15 text-white placeholder-white/30 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition"
             />
+            <p className="text-[11px] text-white/40 mt-1">
+              Letters and spaces only (numbers not allowed).
+            </p>
             {fieldErrors.name && (
               <p className="text-xs text-rose-400 mt-1">{fieldErrors.name[0]}</p>
             )}

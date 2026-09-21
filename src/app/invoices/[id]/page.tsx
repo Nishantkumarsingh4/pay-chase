@@ -24,7 +24,7 @@ const statusBadgeStyles = {
   CANCELLED: 'bg-slate-500/20 text-slate-300 border-slate-500/40',
 };
 
-import Logo from '@/components/ui/Logo';
+import AppNavbar from '@/components/ui/AppNavbar';
 
 export default async function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
   const user = await getCurrentUser();
@@ -45,29 +45,15 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
     notFound();
   }
 
-
   const reminders = await getInvoiceReminders(invoice.id, user.id);
 
   return (
-    <div className="min-h-dvh flex flex-col justify-between p-4 sm:p-6 lg:p-8 relative">
-      {/* Top Bar */}
-      <header className="w-full max-w-5xl mx-auto flex items-center justify-between pb-6 mb-2 border-b border-white/10">
-        <Logo href="/dashboard" />
-
-
-        <div className="flex items-center gap-4">
-          <Link
-            href="/invoices"
-            className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition"
-          >
-            All Invoices
-          </Link>
-          <LogoutButton />
-        </div>
-      </header>
+    <div className="min-h-dvh flex flex-col justify-between relative bg-[#030712]">
+      {/* Universal SaaS Navbar */}
+      <AppNavbar />
 
       {/* Main Container */}
-      <main className="w-full max-w-5xl mx-auto my-auto py-6 space-y-6">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-6">
         {/* Navigation & Header Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <Link
@@ -277,7 +263,7 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
       </main>
 
       {/* Footer */}
-      <footer className="w-full max-w-5xl mx-auto pt-6 border-t border-white/10 text-center text-xs text-white/40">
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-6 border-t border-white/5 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} PayChase • Invoice Details
       </footer>
     </div>

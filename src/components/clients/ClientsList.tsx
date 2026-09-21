@@ -118,19 +118,19 @@ export default function ClientsList({
 
       {/* Empty State */}
       {clients.length === 0 ? (
-        <GlassCard className="p-12 text-center flex flex-col items-center justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 mb-4">
+        <GlassCard className="p-12 text-center flex flex-col items-center justify-center border-white/10 bg-slate-900/40">
+          <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 mb-4 shadow-inner">
             <Users className="w-7 h-7" />
           </div>
-          <h3 className="text-lg font-semibold text-white">No clients found</h3>
-          <p className="text-sm text-white/60 max-w-sm mt-1 mb-6">
+          <h3 className="text-lg font-bold text-white tracking-tight">No clients found</h3>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-sm mt-1 mb-6 leading-relaxed">
             {searchQuery
-              ? `No client matched "${searchQuery}". Try a different search term.`
-              : 'Add your first client to start creating invoices and automated payment reminders.'}
+              ? `No client matched "${searchQuery}". Try searching with a different name or email.`
+              : 'Add your first client to start creating itemized invoices and automated reminder sequences.'}
           </p>
           <button
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:brightness-110 transition"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:brightness-110 transition cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Add your first client</span>
@@ -140,75 +140,90 @@ export default function ClientsList({
         <div className="space-y-4">
           {/* Desktop Table View */}
           <div className="hidden md:block">
-            <GlassCard className="overflow-hidden p-0">
+            <GlassCard className="overflow-hidden p-0 border-white/10 bg-slate-900/50 shadow-2xl">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className="border-b border-white/10 text-xs font-semibold uppercase tracking-wider text-white/50 bg-white/[0.02]">
-                      <th className="py-3.5 px-6">Client Name</th>
-                      <th className="py-3.5 px-6">Email Address</th>
-                      <th className="py-3.5 px-6">Phone Number</th>
-                      <th className="py-3.5 px-6">Invoices</th>
-                      <th className="py-3.5 px-6">Added On</th>
-                      <th className="py-3.5 px-6 text-right">Actions</th>
+                    <tr className="border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-white/[0.02]">
+                      <th className="py-3 px-6">Client</th>
+                      <th className="py-3 px-6">Email</th>
+                      <th className="py-3 px-6">Phone</th>
+                      <th className="py-3 px-6">Invoices</th>
+                      <th className="py-3 px-6">Created</th>
+                      <th className="py-3 px-6 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 text-white/80">
-                    {clients.map((c) => (
-                      <tr
-                        key={c.id}
-                        className="hover:bg-white/[0.03] transition group"
-                      >
-                        <td className="py-4 px-6 font-semibold text-white">
-                          {c.name}
-                        </td>
-                        <td className="py-4 px-6 text-white/70">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-3.5 h-3.5 text-white/40" />
-                            <span>{c.email}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6 text-white/70">
-                          {c.phone ? (
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-3.5 h-3.5 text-white/40" />
-                              <span>{c.phone}</span>
+                  <tbody className="divide-y divide-white/5 text-xs">
+                    {clients.map((c) => {
+                      const initials = c.name
+                        .trim()
+                        .split(' ')
+                        .map((n) => n[0])
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase();
+
+                      return (
+                        <tr
+                          key={c.id}
+                          className="hover:bg-white/[0.03] transition-colors group"
+                        >
+                          <td className="py-3.5 px-6 font-semibold text-white">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-[11px] font-bold text-slate-300 tracking-wider shrink-0 shadow-sm group-hover:border-indigo-400/40 transition-colors">
+                                {initials}
+                              </div>
+                              <span className="truncate">{c.name}</span>
                             </div>
-                          ) : (
-                            <span className="text-white/30 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-1.5 text-xs text-white/70">
-                            <FileText className="w-3.5 h-3.5 text-indigo-400" />
-                            <span>{c.invoiceCount}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6 text-white/50 text-xs">
-                          {new Intl.DateTimeFormat('en-US', {
-                            dateStyle: 'medium',
-                          }).format(c.createdAt)}
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              onClick={() => handleOpenEdit(c)}
-                              title="Edit client"
-                              className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenDelete(c)}
-                              title="Delete client"
-                              className="p-1.5 rounded-lg text-white/60 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-3.5 px-6 text-slate-300 font-mono text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="truncate">{c.email}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-6 text-slate-300 font-mono text-[11px]">
+                            {c.phone ? (
+                              <div className="flex items-center gap-2">
+                                <Phone className="w-3.5 h-3.5 text-slate-500" />
+                                <span>{c.phone}</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-600 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-6">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-medium">
+                              <FileText className="w-3 h-3 text-indigo-400" />
+                              <span>{c.invoiceCount} {c.invoiceCount === 1 ? 'inv' : 'invs'}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-6 text-slate-400 text-[11px] font-mono">
+                            {new Intl.DateTimeFormat('en-US', {
+                              dateStyle: 'medium',
+                            }).format(c.createdAt)}
+                          </td>
+                          <td className="py-3.5 px-6 text-right">
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                onClick={() => handleOpenEdit(c)}
+                                title="Edit client"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleOpenDelete(c)}
+                                title="Delete client"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 transition cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -218,17 +233,17 @@ export default function ClientsList({
           {/* Mobile Stacked Cards */}
           <div className="md:hidden space-y-3">
             {clients.map((c) => (
-              <GlassCard key={c.id} className="p-4 space-y-3">
+              <GlassCard key={c.id} className="p-4 space-y-3 border-white/10 bg-slate-900/60">
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-bold text-white text-base">{c.name}</h4>
-                    <p className="text-xs text-white/60 flex items-center gap-1.5 mt-1">
-                      <Mail className="w-3 h-3 text-white/40" />
+                    <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1 font-mono">
+                      <Mail className="w-3 h-3 text-slate-500" />
                       <span>{c.email}</span>
                     </p>
                     {c.phone && (
-                      <p className="text-xs text-white/60 flex items-center gap-1.5 mt-0.5">
-                        <Phone className="w-3 h-3 text-white/40" />
+                      <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5 font-mono">
+                        <Phone className="w-3 h-3 text-slate-500" />
                         <span>{c.phone}</span>
                       </p>
                     )}
@@ -236,25 +251,25 @@ export default function ClientsList({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenEdit(c)}
-                      className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition"
+                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleOpenDelete(c)}
-                      className="p-2 rounded-lg text-white/60 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                      className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-white/5 pt-2 text-xs text-white/50">
-                  <span className="flex items-center gap-1">
+                <div className="flex items-center justify-between border-t border-white/5 pt-2 text-xs text-slate-400">
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 text-[11px]">
                     <FileText className="w-3 h-3 text-indigo-400" />
                     {c.invoiceCount} {c.invoiceCount === 1 ? 'invoice' : 'invoices'}
                   </span>
-                  <span>
+                  <span className="text-[11px] font-mono">
                     Added {new Intl.DateTimeFormat('en-US', { dateStyle: 'short' }).format(c.createdAt)}
                   </span>
                 </div>

@@ -14,10 +14,14 @@ export const clientSchema = z
       .trim()
       .min(2, 'Name must be at least 2 characters')
       .max(100, 'Name cannot exceed 100 characters')
-      // Disallow ASCII control characters (0x00 - 0x1F, 0x7F)
+      // Must only contain letters, spaces, dots, hyphens, and apostrophes (NO NUMBERS)
       .refine(
-        (val) => !/[\u0000-\u001F\u007F]/.test(val),
-        'Name cannot contain control characters'
+        (val) => !/\d/.test(val),
+        'Name cannot contain numbers'
+      )
+      .refine(
+        (val) => /^[a-zA-Z\s.'-]+$/.test(val),
+        'Name can only contain letters and spaces'
       ),
     email: z
       .string()
@@ -34,13 +38,10 @@ export const clientSchema = z
       .refine(
         (val) => {
           if (!val) return true;
-          // Digits, +, spaces and dashes only
-          if (!/^[0-9+\s-]+$/.test(val)) return false;
-          // Count only actual digits: 7 to 15 digits
-          const digits = val.replace(/\D/g, '');
-          return digits.length >= 7 && digits.length <= 15;
+          // Must be exactly 10 digits
+          return /^\d{10}$/.test(val);
         },
-        'Phone number must contain between 7 and 15 digits (plus, spaces, and dashes are allowed)'
+        'Phone number must be exactly 10 digits'
       ),
   })
   .strict();

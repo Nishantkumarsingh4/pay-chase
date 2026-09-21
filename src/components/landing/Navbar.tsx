@@ -3,7 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ShieldAlert, ArrowRight } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
+import { 
+  Menu, 
+  X, 
+  ArrowRight, 
+  LayoutDashboard, 
+  LogOut, 
+  User, 
+  ChevronDown 
+} from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 
 const NAV_CONTENT = {
   brand: 'PayChase',
@@ -20,8 +30,10 @@ const NAV_CONTENT = {
 };
 
 export const Navbar: React.FC = () => {
+  const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,7 +45,10 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+        setDropdownOpen(false);
+      }
     };
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
@@ -55,33 +70,28 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  // User avatar initials
+  const userName = session?.user?.name || 'User';
+  const userInitials = userName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0].toUpperCase())
+    .join('') || 'U';
+
   return (
-    <header className="sticky top-0 z-50 w-full pt-safe transition-all duration-300">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-3">
+    <header className="sticky top-0 z-50 w-full pt-safe pointer-events-none transition-all duration-300">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-3.5">
         <nav
           aria-label="Main Navigation"
-          className={`glass-panel rounded-2xl px-4 sm:px-6 py-3 flex items-center justify-between transition-all duration-300 ${
+          className={`pointer-events-auto rounded-full px-5 sm:px-7 py-2.5 flex items-center justify-between transition-all duration-300 border ${
             scrolled
-              ? 'shadow-[0_15px_30px_rgba(0,0,0,0.5)] border-white/20 bg-slate-950/70'
-              : 'shadow-lg shadow-black/20'
+              ? 'bg-[#090d1f]/90 backdrop-blur-2xl border-white/20 shadow-[0_20px_40px_rgba(0,0,0,0.7)]'
+              : 'bg-[#090d1f]/75 backdrop-blur-xl border-white/10 shadow-lg shadow-black/30'
           }`}
         >
           {/* Brand Logo */}
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 text-white font-bold text-lg sm:text-xl tracking-tight group focus-visible:rounded-lg"
-          >
-            <motion.div
-              whileHover={{ rotate: 10, scale: 1.05 }}
-              className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30"
-            >
-              <ShieldAlert className="w-5 h-5 text-white" aria-hidden="true" />
-            </motion.div>
-            <span className="flex items-center">
-              {NAV_CONTENT.brand}
-              <span className="text-indigo-400">.</span>
-            </span>
-          </Link>
+          <Logo href="/" />
 
           {/* Desktop Nav without hash in URL */}
           <div className="hidden md:flex items-center gap-7">
@@ -98,23 +108,80 @@ export const Navbar: React.FC = () => {
             ))}
           </div>
 
-          {/* Actions */}
+          {/* Actions: Logged In User Avatar vs Log in / Sign up */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href={NAV_CONTENT.loginHref}
-              className="text-sm font-medium text-white/80 hover:text-white px-3.5 py-2 rounded-xl transition-colors min-h-[44px] flex items-center justify-center hover:bg-white/5"
-            >
-              {NAV_CONTENT.loginText}
-            </Link>
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <Link
-                href={NAV_CONTENT.signupHref}
-                className="text-sm font-medium text-white bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:brightness-110 px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/25 transition-all min-h-[44px] flex items-center justify-center gap-1.5"
-              >
-                <span>{NAV_CONTENT.signupText}</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </motion.div>
+            {status === 'authenticated' && session?.user ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 transition-all text-xs font-semibold text-white cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white text-[11px] font-bold shadow-sm">
+                    {userInitials}
+                  </div>
+                  <span className="max-w-[120px] truncate">{userName}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-white/60 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {dropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-56 rounded-2xl bg-slate-900/95 border border-white/15 p-1.5 shadow-2xl backdrop-blur-2xl z-50 text-xs"
+                    >
+                      <div className="px-3 py-2 border-b border-white/10 mb-1">
+                        <p className="font-semibold text-white truncate">{userName}</p>
+                        <p className="text-[11px] text-white/50 truncate">{session.user.email}</p>
+                      </div>
+
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-white/90 hover:text-white hover:bg-indigo-600/30 font-medium transition"
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-indigo-400" />
+                        <span>Go to Dashboard</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          signOut({ callbackUrl: '/login' });
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-300 hover:text-rose-200 hover:bg-rose-500/15 font-medium transition cursor-pointer text-left"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-400" />
+                        <span>Sign out</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href={NAV_CONTENT.loginHref}
+                  className="text-sm font-medium text-white/80 hover:text-white px-3.5 py-2 rounded-xl transition-colors min-h-[44px] flex items-center justify-center hover:bg-white/5"
+                >
+                  {NAV_CONTENT.loginText}
+                </Link>
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Link
+                    href={NAV_CONTENT.signupHref}
+                    className="text-sm font-medium text-white bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:brightness-110 px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/25 transition-all min-h-[44px] flex items-center justify-center gap-1.5"
+                  >
+                    <span>{NAV_CONTENT.signupText}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </motion.div>
+              </>
+            )}
           </div>
 
           {/* Mobile Hamburger */}
@@ -155,21 +222,47 @@ export const Navbar: React.FC = () => {
               ))}
               <div className="h-px bg-white/10 my-2" />
               <div className="flex flex-col gap-2.5">
-                <Link
-                  href={NAV_CONTENT.loginHref}
-                  onClick={() => setIsOpen(false)}
-                  className="w-full text-center text-base font-medium text-white/80 hover:text-white border border-white/15 bg-white/5 py-3 rounded-xl transition-colors min-h-[48px] flex items-center justify-center"
-                >
-                  {NAV_CONTENT.loginText}
-                </Link>
-                <Link
-                  href={NAV_CONTENT.signupHref}
-                  onClick={() => setIsOpen(false)}
-                  className="w-full text-center text-base font-medium text-white bg-gradient-to-r from-indigo-500 to-violet-600 py-3 rounded-xl shadow-lg shadow-indigo-500/30 transition-all min-h-[48px] flex items-center justify-center gap-2"
-                >
-                  {NAV_CONTENT.signupText}
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {status === 'authenticated' && session?.user ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setIsOpen(false)}
+                      className="w-full text-center text-base font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 py-3 rounded-xl shadow-lg shadow-indigo-500/30 transition-all min-h-[48px] flex items-center justify-center gap-2"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span>Go to Dashboard</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsOpen(false);
+                        signOut({ callbackUrl: '/login' });
+                      }}
+                      className="w-full text-center text-sm font-medium text-rose-300 hover:text-rose-200 border border-rose-500/20 bg-rose-500/10 py-3 rounded-xl transition-colors min-h-[48px] flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign out</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href={NAV_CONTENT.loginHref}
+                      onClick={() => setIsOpen(false)}
+                      className="w-full text-center text-base font-medium text-white/80 hover:text-white border border-white/15 bg-white/5 py-3 rounded-xl transition-colors min-h-[48px] flex items-center justify-center"
+                    >
+                      {NAV_CONTENT.loginText}
+                    </Link>
+                    <Link
+                      href={NAV_CONTENT.signupHref}
+                      onClick={() => setIsOpen(false)}
+                      className="w-full text-center text-base font-medium text-white bg-gradient-to-r from-indigo-500 to-violet-600 py-3 rounded-xl shadow-lg shadow-indigo-500/30 transition-all min-h-[48px] flex items-center justify-center gap-2"
+                    >
+                      {NAV_CONTENT.signupText}
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

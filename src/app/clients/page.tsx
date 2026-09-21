@@ -14,7 +14,7 @@ interface ClientsPageProps {
   }>;
 }
 
-import Logo from '@/components/ui/Logo';
+import AppNavbar from '@/components/ui/AppNavbar';
 
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const user = await getCurrentUser();
@@ -32,31 +32,12 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   });
 
   return (
-    <div className="min-h-dvh flex flex-col justify-between p-4 sm:p-6 lg:p-8 relative">
-      {/* Top Bar */}
-      <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-6 mb-2 border-b border-white/10">
-        <Logo href="/dashboard" />
-
-
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Link
-            href="/dashboard"
-            className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/invoices"
-            className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition"
-          >
-            Invoices
-          </Link>
-          <LogoutButton />
-        </div>
-      </header>
+    <div className="min-h-dvh flex flex-col justify-between relative bg-[#030712]">
+      {/* Universal SaaS Navbar */}
+      <AppNavbar />
 
       {/* Main Container */}
-      <main className="w-full max-w-6xl mx-auto flex-1 py-4 sm:py-6">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1">
         <ClientsList
           clients={clients}
           totalCount={totalCount}
@@ -67,7 +48,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
       </main>
 
       {/* Footer */}
-      <footer className="w-full max-w-6xl mx-auto pt-6 border-t border-white/10 text-center text-xs text-white/40">
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-6 border-t border-white/5 text-center text-xs text-slate-500">
         &copy; {new Date().getFullYear()} PayChase Inc. All rights reserved.
       </footer>
     </div>

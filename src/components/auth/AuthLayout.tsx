@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShieldAlert, CheckCircle2, Bot, BellRing, Sparkles } from 'lucide-react';
+import { CheckCircle2, Bot, BellRing, Sparkles } from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -15,17 +16,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitl
     <div className="min-h-dvh flex flex-col justify-between relative px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       {/* Brand Header */}
       <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-6">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 text-white font-bold text-lg sm:text-xl tracking-tight group"
-        >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-            <ShieldAlert className="w-5 h-5 text-white" aria-hidden="true" />
-          </div>
-          <span>
-            PayChase<span className="text-indigo-400">.</span>
-          </span>
-        </Link>
+        <Logo href="/" />
         <Link
           href="/"
           className="text-xs sm:text-sm text-white/60 hover:text-white transition-colors"

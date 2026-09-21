@@ -426,3 +426,96 @@ View URL: ${viewUrl}`);
   }
 }
 
+/**
+ * Send notification email to admin when a user submits a contact/support query
+ */
+export async function sendSupportNotificationToAdmin({
+  userName,
+  userEmail,
+  subject,
+  message,
+}: {
+  userName: string;
+  userEmail: string;
+  subject: string;
+  message: string;
+}): Promise<boolean> {
+  const adminEmail = process.env.ADMIN_EMAIL || 'nk1103200478@gmail.com';
+  const from =
+    process.env.EMAIL_FROM || process.env.SMTP_FROM || `PayChase Support <${process.env.SMTP_USER || 'support@paychase.app'}>`;
+
+  const emailSubject = `[PayChase Support Ticket] ${subject} - from ${userName}`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>New Support Ticket</title>
+</head>
+<body style="margin: 0; padding: 30px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #030712; color: #f3f4f6;">
+  <div style="max-width: 580px; margin: 0 auto; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <div style="border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px;">
+      <h2 style="margin: 0; color: #818cf8; font-size: 18px; font-weight: 700;">PayChase • Support Desk Alert</h2>
+      <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">New contact form submission received</p>
+    </div>
+
+    <div style="background-color: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+      <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 6px 0; color: #94a3b8; width: 110px;">User Name:</td>
+          <td style="padding: 6px 0; color: #ffffff; font-weight: 600;">${userName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #94a3b8;">User Email:</td>
+          <td style="padding: 6px 0;"><a href="mailto:${userEmail}" style="color: #818cf8; text-decoration: none;">${userEmail}</a></td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #94a3b8;">Subject:</td>
+          <td style="padding: 6px 0; color: #ffffff; font-weight: 600;">${subject}</td>
+        </tr>
+      </table>
+    </div>
+
+    <h3 style="color: #cbd5e1; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Message Details:</h3>
+    <div style="background-color: #030712; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; font-size: 14px; line-height: 1.6; color: #e2e8f0; white-space: pre-wrap;">${message}</div>
+
+    <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #1e293b; text-align: center;">
+      <a href="mailto:${userEmail}?subject=Re: ${encodeURIComponent(subject)}" style="display: inline-block; padding: 12px 28px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 14px;">
+        Reply to ${userName} directly
+      </a>
+    </div>
+
+    <div style="margin-top: 24px; text-align: center; font-size: 11px; color: #475569;">
+      Sent to Admin (${adminEmail}) • PayChase Automated Monitoring
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  try {
+    const transporter = getMailTransporter();
+    if (!transporter) {
+      console.log(`[NODEMAILER_DEV_MODE] Support notification for Admin (${adminEmail}):
+From: ${userName} <${userEmail}>
+Subject: ${subject}
+Message: ${message}`);
+      return true;
+    }
+
+    await transporter.sendMail({
+      from,
+      to: adminEmail,
+      replyTo: userEmail,
+      subject: emailSubject,
+      html,
+    });
+    return true;
+  } catch (err) {
+    console.error('[NODEMAILER_SUPPORT_ADMIN_EMAIL_ERROR]', err);
+    return false;
+  }
+}
+
+
