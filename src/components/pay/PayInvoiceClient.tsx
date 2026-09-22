@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
   CheckCircle2, 
@@ -17,7 +17,9 @@ import { formatInvoiceAmount, calculateLineTotal } from '@/lib/invoice';
 import { 
   processPublicPayment, 
   createRazorpayOrder, 
-  verifyAndRecordRazorpayPayment 
+  verifyAndRecordRazorpayPayment,
+  createStripeCheckoutSession,
+  confirmStripePayment
 } from '@/app/actions/invoice';
 import GlassCard from '@/components/ui/GlassCard';
 import type { InvoiceDetail } from '@/lib/invoice-queries';
@@ -62,19 +64,57 @@ export default function PayInvoiceClient({ invoice }: PayInvoiceClientProps) {
 
   const pdfUrl = `/api/invoices/${invoice.id}/pdf`;
 
+  // Auto-verify Stripe session if redirected back from Stripe Checkout
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const stripeSessionId = urlParams.get('stripe_session_id');
+
+    if (stripeSessionId && !isPaid) {
+      setIsProcessing(true);
+      confirmStripePayment(invoice.id, stripeSessionId)
+        .then((res) => {
+          if (res.success) {
+            setIsPaid(true);
+            if (res.txnId) setJustCompletedTxn(res.txnId);
+            window.history.replaceState({}, '', `/pay/${invoice.id}`);
+          } else {
+            setErrorMessage(res.error || 'Failed to verify Stripe payment');
+          }
+        })
+        .catch((err) => {
+          setErrorMessage(err.message || 'Payment verification failed');
+        })
+        .finally(() => {
+          setIsProcessing(false);
+        });
+    }
+  }, [invoice.id, isPaid]);
+
   const handlePayNow = async () => {
     try {
       setIsProcessing(true);
       setErrorMessage(null);
 
-      // 1. Check if Razorpay order can be created
-      const orderRes = await createRazorpayOrder(invoice.id);
+      // 1. Try Stripe Checkout (Zero PAN Card required)
+      const stripeRes = await createStripeCheckoutSession(invoice.id);
+      if (stripeRes.success && stripeRes.url) {
+        window.location.href = stripeRes.url;
+        return;
+      }
 
+      if (!stripeRes.success && stripeRes.error && stripeRes.error !== 'STRIPE_NOT_CONFIGURED') {
+        setErrorMessage(`Payment Gateway Error: ${stripeRes.error}`);
+        setIsProcessing(false);
+        return;
+      }
+
+      // 2. Try Razorpay (if configured)
+      const orderRes = await createRazorpayOrder(invoice.id);
       if (orderRes.success && orderRes.orderId && orderRes.keyId) {
-        // Load Razorpay script
         const isLoaded = await loadRazorpayScript();
         if (!isLoaded) {
-          throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
+          throw new Error('Razorpay SDK failed to load.');
         }
 
         const options = {
@@ -130,16 +170,11 @@ export default function PayInvoiceClient({ invoice }: PayInvoiceClientProps) {
         return;
       }
 
-      // If Razorpay keys aren't configured yet, provide simulated instant checkout
-      const fallbackResult = await processPublicPayment(invoice.id, 'CHECKOUT_DEMO');
-      if (fallbackResult.success) {
-        setIsPaid(true);
-        if (fallbackResult.txnId) {
-          setJustCompletedTxn(fallbackResult.txnId);
-        }
-      } else {
-        setErrorMessage(fallbackResult.error || 'Failed to complete payment. Please try again.');
-      }
+      // If neither gateway succeeded, show error message instead of auto-completing
+      setErrorMessage(
+        stripeRes.error || 
+        'Payment gateway could not be initialized. Please try again or contact support.'
+      );
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred during payment.');
     } finally {
@@ -297,8 +332,8 @@ export default function PayInvoiceClient({ invoice }: PayInvoiceClientProps) {
         )}
 
         {/* Line Items Table */}
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-3">
+        <div className="pt-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-3 px-1">
             Items & Deliverables
           </h3>
           <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.01]">
@@ -368,11 +403,13 @@ export default function PayInvoiceClient({ invoice }: PayInvoiceClientProps) {
 
         {/* Notes */}
         {invoice.notes && (
-          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-xs font-semibold uppercase tracking-wider text-white/40 block mb-1">
-              Notes / Payment Instructions
-            </span>
-            <p className="text-sm text-white/80 whitespace-pre-wrap">{invoice.notes}</p>
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10">
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/40 block mb-1.5">
+                Notes / Payment Instructions
+              </span>
+              <p className="text-sm text-white/80 whitespace-pre-wrap">{invoice.notes}</p>
+            </div>
           </div>
         )}
       </GlassCard>

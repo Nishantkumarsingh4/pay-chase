@@ -46,6 +46,7 @@ export const viewport = {
 };
 
 import AuthProvider from '@/components/providers/AuthProvider';
+import CookieConsent from '@/components/ui/CookieConsent';
 
 export default function RootLayout({
   children,
@@ -72,7 +73,10 @@ export default function RootLayout({
           <div className="absolute top-[60%] -right-[12%] w-[28rem] h-[28rem] sm:w-[46rem] sm:h-[46rem] rounded-full bg-gradient-to-tl from-cyan-600/20 to-blue-600/15 blur-[150px] animate-float-3 will-change-transform" />
         </div>
 
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <CookieConsent />
+        </AuthProvider>
       </body>
     </html>
   );

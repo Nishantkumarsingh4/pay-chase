@@ -20,12 +20,18 @@ export default async function NewInvoicePage() {
     redirect('/login?callbackUrl=/invoices/new');
   }
 
-  // Fetch only this user's clients
+  // Fetch only this user's clients and serialize to plain JS objects
   const pool = getDbPool();
-  const [clients] = await pool.query<ClientRow[]>(
+  const [clientRows] = await pool.query<ClientRow[]>(
     'SELECT id, name, email FROM clients WHERE user_id = ? ORDER BY name ASC',
     [user.id]
   );
+
+  const clients = clientRows.map((c) => ({
+    id: String(c.id),
+    name: String(c.name),
+    email: String(c.email),
+  }));
 
   return (
     <div className="min-h-dvh flex flex-col justify-between relative bg-[#030712]">

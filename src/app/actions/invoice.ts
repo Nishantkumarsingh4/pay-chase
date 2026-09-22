@@ -797,4 +797,162 @@ export async function verifyAndRecordRazorpayPayment({
   }
 }
 
+/**
+ * CREATE STRIPE CHECKOUT SESSION (Zero PAN Card required)
+ */
+export async function createStripeCheckoutSession(invoiceId: string): Promise<{
+  success: boolean;
+  url?: string;
+  sessionId?: string;
+  error?: string;
+}> {
+  try {
+    const pool = getDbPool();
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT i.id, i.total, i.currency, i.status, i.number, c.name as client_name, c.email as client_email
+       FROM invoices i
+       JOIN clients c ON i.client_id = c.id
+       WHERE i.id = ?`,
+      [invoiceId]
+    );
+    const invoice = rows[0];
+
+    if (!invoice) {
+      return { success: false, error: 'Invoice not found' };
+    }
+
+    if (invoice.status === 'PAID') {
+      return { success: false, error: 'Invoice is already paid' };
+    }
+
+    const { getStripeClient } = await import('@/lib/stripe');
+    const stripe = getStripeClient();
+
+    if (!stripe) {
+      return { success: false, error: 'STRIPE_NOT_CONFIGURED' };
+    }
+
+    const rawUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const appUrl = rawUrl.replace(/\/$/, '');
+    const amountInSubunits = Math.round(Number(invoice.total) * 100);
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      customer_email: invoice.client_email,
+      line_items: [
+        {
+          price_data: {
+            currency: invoice.currency.toLowerCase(),
+            product_data: {
+              name: `Invoice ${invoice.number}`,
+              description: `Payment for invoice ${invoice.number} to PayChase`,
+            },
+            unit_amount: amountInSubunits,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${appUrl}/pay/${invoiceId}?stripe_session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/pay/${invoiceId}?cancelled=true`,
+      metadata: {
+        invoiceId: invoice.id,
+      },
+    });
+
+    return {
+      success: true,
+      url: session.url || undefined,
+      sessionId: session.id,
+    };
+  } catch (err: any) {
+    console.error('[CREATE_STRIPE_SESSION_ERROR]', err);
+    return { success: false, error: err.message || 'Failed to initialize Stripe checkout.' };
+  }
+}
+
+/**
+ * CONFIRM AND RECORD STRIPE PAYMENT FROM SESSION
+ */
+export async function confirmStripePayment(
+  invoiceId: string,
+  sessionId: string
+): Promise<{ success: boolean; txnId?: string; error?: string }> {
+  try {
+    const { getStripeClient } = await import('@/lib/stripe');
+    const stripe = getStripeClient();
+    if (!stripe) {
+      return { success: false, error: 'Stripe configuration missing' };
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status !== 'paid') {
+      return { success: false, error: 'Payment has not been completed yet.' };
+    }
+
+    const txnId = (session.payment_intent as string) || session.id;
+
+    const pool = getDbPool();
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      const [invRows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, total, status FROM invoices WHERE id = ? FOR UPDATE`,
+        [invoiceId]
+      );
+      const invoice = invRows[0];
+
+      if (!invoice) {
+        await conn.rollback();
+        return { success: false, error: 'Invoice not found' };
+      }
+
+      if (invoice.status === 'PAID') {
+        await conn.rollback();
+        return { success: true, txnId };
+      }
+
+      const paymentId = uuidv4();
+
+      // 1. Mark invoice as PAID
+      await conn.query(
+        `UPDATE invoices 
+         SET status = 'PAID', 
+             paid_at = NOW(), 
+             reminders_enabled = 0,
+             updated_at = NOW()
+         WHERE id = ?`,
+        [invoiceId]
+      );
+
+      // 2. Insert into payments table
+      await conn.query(
+        `INSERT INTO payments (id, invoice_id, gateway, txn_id, amount, paid_at)
+         VALUES (?, ?, 'STRIPE', ?, ?, NOW())`,
+        [paymentId, invoiceId, txnId, invoice.total]
+      );
+
+      await conn.commit();
+
+      revalidatePath(`/pay/${invoiceId}`);
+      revalidatePath(`/invoices/${invoiceId}`);
+      revalidatePath('/invoices');
+      revalidatePath('/dashboard');
+
+      return { success: true, txnId };
+    } catch (dbErr: any) {
+      await conn.rollback();
+      console.error('[RECORD_STRIPE_PAYMENT_DB_ERROR]', dbErr);
+      return { success: false, error: 'Database update failed' };
+    } finally {
+      conn.release();
+    }
+  } catch (error: any) {
+    console.error('[CONFIRM_STRIPE_PAYMENT_ERROR]', error);
+    return { success: false, error: error.message || 'Verification failed' };
+  }
+}
+
 

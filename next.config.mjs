@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        '127.0.0.1:3000',
+        '*.trycloudflare.com',
+        '*.ngrok-free.app',
+        '*.devtunnels.ms',
+      ],
+    },
+  },
   async headers() {
     return [
       {
@@ -29,10 +40,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com https://js.stripe.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
+              "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://js.stripe.com https://checkout.stripe.com https://hooks.stripe.com",
               "connect-src 'self' http://localhost:* ws://localhost:* https:",
               "frame-ancestors 'none'",
             ].join('; '),

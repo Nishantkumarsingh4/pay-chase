@@ -226,7 +226,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       margin-bottom: 30px;
       border: 1px solid #e2e8f0;
       border-radius: 12px;
-      overflow: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     table {
       width: 100%;
@@ -334,6 +335,64 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     .print-btn:hover {
       background: #4338ca;
     }
+    @media (max-width: 640px) {
+      body {
+        padding: 16px;
+      }
+      .header {
+        flex-direction: column;
+        gap: 16px;
+      }
+      .invoice-title-block {
+        text-align: left;
+      }
+      .meta-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .dates-row {
+        gap: 8px;
+      }
+      .dates-row span:first-child {
+        min-width: 80px;
+        white-space: nowrap;
+      }
+      .summary-section {
+        flex-direction: column;
+      }
+      .totals-box {
+        width: 100%;
+      }
+      .table-container {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: scroll !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-x pan-y;
+        display: block;
+        margin-bottom: 24px;
+        position: relative;
+      }
+      table {
+        min-width: 580px !important;
+        width: 580px !important;
+        table-layout: fixed;
+      }
+      .scroll-hint {
+        display: flex !important;
+      }
+    }
+    .scroll-hint {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #6366f1;
+      font-weight: 600;
+      margin-bottom: 8px;
+      padding: 0 4px;
+    }
     @media print {
       body {
         padding: 0;
@@ -395,6 +454,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   ${paymentsHtml}
 
+  <div class="scroll-hint">
+    <span>👉 Swipe horizontally to view full table details</span>
+  </div>
   <div class="table-container">
     <table>
       <thead>
